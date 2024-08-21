@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pyvista as pv
 
 # All numbers are hypothetical for development purposes
 power_watts = 100
@@ -8,7 +9,7 @@ clock_speed = 64e6
 program_mem_size = 128000
 data_mem_size = 1536
 
-frequency_range = np.linspace(2e14, 4e14) 
+frequency_range = np.linspace(2e14, 4e14, 500) 
 
 power_density_sq = power_watts / surface_area
 
@@ -29,7 +30,6 @@ device_levels = {
     "data_mem_size": data_mem_size
 }
 
-
 power_at_each_frequency = power_density_sq * gain - noise_level
 
 plt.figure(figsize=(10, 6))
@@ -40,3 +40,22 @@ plt.title('Power Density vs Frequency')
 plt.legend()
 plt.grid(True)
 plt.show()
+
+plotter = pv.Plotter()
+plotter.set_background('black')
+
+grid_size = len(frequency_range)
+x = frequency_range
+y = power_at_each_frequency
+z = power_consumption  # Arbitrary example to add a third dimension
+
+points = np.column_stack((x, y, z))
+mesh = pv.PolyData(points)
+
+plotter.add_mesh(mesh, render_points_as_spheres=True, point_size=5, color='white')
+plotter.add_axes()
+plotter.show_grid()
+
+plotter.show()
+
+mesh.save("simulation_result.obj")
