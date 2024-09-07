@@ -45,6 +45,4 @@ except KeyboardInterrupt:
 finally:
     sdr.close()
     plotter.close()
-
-    # Save the grid as an OBJ file
     grid.save("rf_capture.obj")
