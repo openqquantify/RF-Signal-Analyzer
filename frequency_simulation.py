@@ -75,3 +75,5 @@ plt.title('Depth Image')
 plt.xlabel('X-axis')
 plt.ylabel('Y-axis')
 plt.show()
+
+grid.save("rf_sim.obj")
