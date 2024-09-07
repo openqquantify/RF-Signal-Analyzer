@@ -1,0 +1,89 @@
+import os
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
+from PyPDF2 import PdfReader
+import re
+import pdfplumber
+import tempfile
+import mimetypes
+
+SEARCH_ENGINES = {
+    "Google": "https://www.google.com/search",
+}
+
+KEYWORDS= ["radio frequency analysis", "embedded systems", "IoT devices", "cybersecurity", "security", "ethical hacking", "hacking"]
+
+QUERY = f"filetype:pdf site:.gov OR site:.mil OR site:.edu OR site:.com ({" OR ".join(KEYWORDS)})"
+
+def search_results(search_engine_url, keywords):
+    params = {
+        "q": QUERY,
+        "num": 100
+    }
+    
+    response = requests.get(search_engine_url, params=params)
+    soup = BeautifulSoup(response.text, "html.parser")
+    
+    pdf_urls = []
+    for link in soup.find_all("a"):
+        href = link.get("href")
+        if href:
+            parsed_href = re.sub(r"^\/url\?q=", "", href)
+            parsed_href = re.split("&sa=U&ved=", parsed_href)[0]
+            
+            if parsed_href.endswith(".pdf") and (".gov" in parsed_href or ".mil" in parsed_href or ".edu" in parsed_href or ".com" in parsed_href):
+                pdf_urls.append(parsed_href)
+    
+    return pdf_urls
+
+def download_pdf(pdf_urls, output_dir):
+    for url in pdf_urls:
+        try:
+            filename = os.path.basename(url)
+            filepath = os.path.join(output_dir, filename)
+
+            response = requests.get(url, stream=True)
+
+            content_type = response.headers.get("content-type", "")
+            if "application/pdf" not in content_type.lower():
+                print(f"Skipping non-PDF file: {filename}")
+                continue
+
+            with open(filepath, "wb") as file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
+
+            try:
+                reader = PdfReader(filepath)
+                num_pages = len(reader.pages)
+                print(f"Downloaded and verified: {filename} ({num_pages} pages)")
+
+                with pdfplumber.open(filepath) as pdf:
+                    first_page_text = pdf.pages[0].extract_text()
+                    print(f"First page text: {first_page_text[:200]}...")
+            except Exception as e:
+                print(f"Error processing {url}: {str(e)}")
+                os.remove(filepath)
+        except Exception as e:
+            print(f"Error downloading {url}: {str(e)}")
+
+def main():
+    output_dir = "rf_files"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    all_pdf_urls = []
+    
+    for engine_name, engine_url in SEARCH_ENGINES.items():
+        print(f"Searching {engine_name}...")
+        pdf_urls = search_results(engine_url, QUERY)
+        all_pdf_urls.extend(pdf_urls)
+        print(f"Found {len(pdf_urls)} PDF URLs from {engine_name}")
+    
+    unique_pdf_urls = list(set(all_pdf_urls))
+    print(f"\nTotal unique PDF URLs found: {len(unique_pdf_urls)}")
+    
+    download_pdf(unique_pdf_urls, output_dir)
+
+if __name__ == "__main__":
+    main()
